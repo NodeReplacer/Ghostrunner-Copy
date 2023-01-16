@@ -1201,6 +1201,7 @@ MonoBehaviour:
   mySelf: {fileID: 322035894}
   minWallRunAngle: 80
   maxWallRunAngle: 100
+  wallRunDirection: {x: 0, y: 0, z: 0}
   isWallRunning: 0
 --- !u!1 &2114283753834967212
 GameObject:
