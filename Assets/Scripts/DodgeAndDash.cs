@@ -211,7 +211,7 @@ namespace StarterAssets
             {
                 //We've hit something and need to stop in case we go blazing through the object.
                 //May not be necessary.
-                dashTarget = aimInfo.point;
+                dashTarget = aimInfo.point * 0.958f;
                 //There's a problem. The dash needs to activate for about 3-5 frames.
                 //But this will only be called once.
                 //My current solution is to just set the dash as active and deactivate once
