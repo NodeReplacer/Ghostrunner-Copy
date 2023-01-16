@@ -263,8 +263,8 @@ namespace StarterAssets
 			}
 			else if (dodgeScript.isDashing) //While we're dashing our normal movement cannot overwrite the motion of our dash.
 			{
-				transform.position = Vector3.MoveTowards(transform.position, dodgeScript.dashTarget, dodgeScript.dashSpeed*Time.deltaTime);
-				if (Vector3.Distance(transform.position, dodgeScript.dashTarget) < 0.001f)
+				transform.position = Vector3.MoveTowards(transform.position, dodgeScript.dashTarget * 0.958f, dodgeScript.dashSpeed*Time.deltaTime);
+				if (Vector3.Distance(transform.position, dodgeScript.dashTarget * 0.958f) < 0.001f)
 				{
 					dodgeScript.isDashing = false;
 				}

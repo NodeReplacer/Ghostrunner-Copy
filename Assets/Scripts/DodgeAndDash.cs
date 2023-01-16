@@ -104,7 +104,6 @@ namespace StarterAssets
             if (!isDashing)
             {
                 DodgeMode(input.isDodging);
-                
             }
             /*
             else

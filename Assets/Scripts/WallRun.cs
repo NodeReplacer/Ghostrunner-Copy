@@ -20,17 +20,18 @@ namespace StarterAssets
         [SerializeField] 
         private GameObject playerCamera;
         [SerializeField] 
-        private GameObject mySelf;
         [Tooltip("Ensure we ignore this object for the sake of collision detection.")]
+        private GameObject mySelf;
         [SerializeField, Range(0, 90)]
-        float minWallRunAngle = 80.0f;
         [Tooltip(
-            "The nature of this is very difficult to explain. 90 degrees is a straight wall, while 180 is a ceiling. The numbers in between" +
-            "the two are overhangs. Or upside down slopes if you'd like to call it that. \n" +
+            "The nature of this is very difficult to explain. 90 degrees is a straight wall, while 180 is a ceiling. The numbers in between " +
+            "the two are overhangs. Or upside down slopes if you'd like to call it that. \n\n" +
             "minWallRunAngle must be less than 90 degrees")]
+        float minWallRunAngle = 80.0f;
         [SerializeField, Range(90,180)]
-        private float maxWallRunAngle = 100.0f;
         [Tooltip("MaxWallRunAngle must be 90 degrees or greater. No exceptions.")]
+        private float maxWallRunAngle = 100.0f;
+        
         //The fuller explanation: This angle is measured relative to the floor. One edge is our "wall" or the face we are
         //trying to figure out is a wall or not. The other edge is a floor that doesn't exist in game but we are measuring from
         //there.
@@ -64,71 +65,108 @@ namespace StarterAssets
         public bool isWallRunning = false; //We start out not wall running.
         
         private CharacterController _characterController;
-
         private DodgeAndDash _dodgeAndDash;
 
+        private bool _isColliding;
+        
         private float _minWallRunDotProduct;
         private float _maxWallRunDotProduct;
+        private int _wallContactCount = 0;
+
+        private Collider lastCollider;
         
         void Awake()
         {
             _minWallRunDotProduct = Mathf.Cos(minWallRunAngle * Mathf.Deg2Rad);
-            Debug.Log("80 * Mathf.Deg2Rad = " + (80.0f * Mathf.Deg2Rad));
-            Debug.Log("In awake minWallRunDotProduct = " + _minWallRunDotProduct);
-            Debug.Log("My hard code resolve = " + Mathf.Cos(80.0f * Mathf.Deg2Rad));
             _maxWallRunDotProduct = Mathf.Cos((maxWallRunAngle) * Mathf.Deg2Rad);
+            
             _characterController = GetComponent<CharacterController>();
             _firstPersonController = GetComponent<FirstPersonController>();
             _dodgeAndDash = GetComponent<DodgeAndDash>();
+            
             Physics.IgnoreCollision(mySelf.GetComponent<Collider>(), GetComponent<Collider>());
         }
-        
-        //TEMP NOTE
-        //So I need to be able to transfer from two walls that are connected by a corner. An L shape.
-        //Though so far it seems to work out fine because the collision counts mean this collision happens
-        //after we touch our wall. There might be some issue with jumping directly at a corner but you should otherwise be fine.
-        
+
         private void Update()
         {
-            
+            _isColliding = false;
         }
         
+        //I'll have to rewrite this.
+        //On enter should simply evaluate collisions then. Because there's no way to do it
         void OnCollisionEnter(Collision collision)
         {
+            if(_isColliding) return;
+            _isColliding = true;
+            
             //WARNING: The collision is still being noticed. We just aren't doing anything with
             //it unless we are not grounded.
             //This means if we touch a wall then jump while staying pressed against the wall,
             //nothing will happen even though we should probably start autorunning along
             //the side.
-            Debug.Log("Entered Collision");
+            
+            //Debug.Log("Entered Collision");
+            //Debug.Log("Grounded = "+_firstPersonController.Grounded);
+            //Debug.Log("Dashing = "+_dodgeAndDash.isDashing);
+            
+            _dodgeAndDash.isDashing = false;
+            _dodgeAndDash.hasDashTarget = false;
+            
+            for (int i = 0; i < collision.contactCount; i++)
+            {
+                //Can't I just say "if it's the same collider as before then ignore it"?
+                Vector3 normal = collision.GetContact(i).normal;
+                EvaluateCollision(collision, normal);
+                Debug.Log(collision.GetContact(i).otherCollider);
+            }
+            
+            /*
             if (!_firstPersonController.Grounded)
             {
+                _dodgeAndDash.isDashing = false;
                 for (int i = 0; i < collision.contactCount; i++)
                 {
-                    //WARNING: We do not check if the contact is actually a wall or not. We could do it here
-                    //using the normal and checking if the normal's y value creates an appropriate angle.
-                    //There might be some ceiling running is all I'm saying.
+                    //Can't I just say "if it's the same collider as before then ignore it"?
                     Vector3 normal = collision.GetContact(i).normal;
                     EvaluateCollision(collision, normal);
+                    Debug.Log(collision.GetContact(i).otherCollider);
                 }
-                /*
-                foreach (ContactPoint contact in collision.contacts)
-                {
-                    
-                }
-                */
             }
+            
+            else if (_dodgeAndDash.isDashing)
+            {
+                _dodgeAndDash.isDashing = false;
+                for (int i = 0; i < collision.contactCount; i++)
+                {
+                    //Can't I just say "if it's the same collider as before then ignore it"?
+                    Vector3 normal = collision.GetContact(i).normal;
+                    EvaluateCollision(collision, normal);
+                    Debug.Log(collision.GetContact(i).otherCollider);
+                }
+            }
+            */
+            
+            /*
+            foreach (ContactPoint contact in collision.contacts)
+            {
+                
+            }
+            */
         }
-
+        
         private void EvaluateCollision(Collision collision, Vector3 normal)
         {
-            Debug.Log("Evaluated Collision. Not Grounded. Colldied with: "+ collision.collider);
             wallRunDirection = ProjectDirectionOnPlane(playerCamera.transform.forward, normal);
             wallRunDirection.y = 0;
+            Debug.DrawRay(_firstPersonController.transform.position,wallRunDirection.normalized,Color.red,15);
+            //Debug.Log("Collision not Grounded. Colldied with: "+ collision.collider);
 
             //Make an if statement here to determine if the collision counts as a wall.
             //Compare it with our maximum allowed "wall angle"
             float updot = Vector3.Dot(Vector3.up, normal.normalized);
+            
+            //Debug.Log("updot = " + updot);
+            
             /*
             Debug.Log("Updot = " + updot);
             Debug.Log("minWallRunDotProduct = " + _minWallRunDotProduct);
@@ -138,28 +176,68 @@ namespace StarterAssets
             if (updot >= _maxWallRunDotProduct && updot <= _minWallRunDotProduct)
             {
                 //What we really want to know is if the contact body's angle is between 80 -> 100 degrees.
-                Debug.Log("Valid wall found");
-                _dodgeAndDash.isDashing = false;
-                _dodgeAndDash.hasDashTarget = false;
+                //Debug.Log("Valid wall found");
                 
                 //Tilt the camera to indicate to player
                 //change headbob direction.
                 //make sure the rotation is finished before we do any of this. Will need booleans
                 
                 //NOTE: Lerp the rotation. It happens in a single frame the way it's working now.
-                //
-                Quaternion rotation = Quaternion.LookRotation(wallRunDirection.normalized);
-                transform.rotation = rotation;
-
-                Debug.DrawRay(_firstPersonController.transform.position,normal,Color.blue,15);
-                Debug.DrawRay(_firstPersonController.transform.position,wallRunDirection.normalized,Color.red,15);
+                //But we've objectively hit a wall.
                 
-                if (isWallRunning)
+                if (_characterController.isGrounded)
                 {
-                    Debug.Log("We have entered a new collision but are currently wallrunning. Need to transfer walls");
+                    //Debug.Log("Unfortunately we read grounded this far in.");
+                    Debug.DrawRay(_firstPersonController.transform.position,normal,Color.blue,15);
+                    ++_wallContactCount; //We found a wall but we are grounded. Or we think we are. Either way.
+                    Debug.Log("wallContactCount = "+_wallContactCount);
                 }
-                
-                isWallRunning = true;
+                else
+                {
+                    Quaternion rotation = Quaternion.LookRotation(wallRunDirection.normalized);
+                    transform.rotation = rotation;
+                    if (isWallRunning)
+                    {
+                        //Debug.Log("We have entered a new collision but are currently wallrunning. Need to transfer walls");
+                    }
+                    isWallRunning = true;
+                }
+            }
+        }
+        
+        //Here's the solution I came up with.
+        //OnCollisionEnter (and exit) counts how many walls we are touching - This is the part where bugs can show up the most.
+        //We hand our wallContactCount to OnCollisionStay. Which uses it to determine only if we are still touching a wall.
+        //If we are touching a wall then we keep evaluating collisions. If we are grounded then we don't do anything yet.
+        
+        //From EvaluateCollision: We prepare to turn the camera. If the camera is already turned we flip the signal bool to false.
+        //We turn the camera if we haven't yet, then start running along the wall.
+        //We can use wallcount to handle the turning outside any collision function but should probably do it in evaluate stay.
+        //Exiting all collisions should reset the state.
+        
+        private void OnCollisionStay(Collision collision)
+        {
+            for (int i = 0; i < collision.contactCount; i++)
+            {
+                //Can't I just say "if it's the same collider as before then ignore it"?
+                Vector3 normal = collision.GetContact(i).normal;
+                EvaluateStay(collision, normal);
+            }
+        }
+
+        private void EvaluateStay(Collision collision, Vector3 normal)
+        {
+            float updot = Vector3.Dot(Vector3.up, normal.normalized);
+            if (updot >= _maxWallRunDotProduct && updot <= _minWallRunDotProduct)
+            {
+                if (_firstPersonController.Grounded)
+                {
+                    //Debug.Log("Still grounded but staying on the wall");
+                }
+                else
+                {
+                    //Debug.Log("Staying on the wall but no longer grounded.");
+                }
             }
         }
         
@@ -171,6 +249,13 @@ namespace StarterAssets
             {
                 isWallRunning = false;
             }
+
+            if (_wallContactCount > 0)
+            {
+                _wallContactCount--;
+                Debug.Log("wallContactCount = "+_wallContactCount);
+            }
+            
         }
         
         private Vector3 ProjectDirectionOnPlane (Vector3 direction, Vector3 normal) {
@@ -179,12 +264,6 @@ namespace StarterAssets
             //The normal vector of the plane in question is usually gotten by using getContact(INDEX).normal;
             return (direction - normal * Vector3.Dot(direction, normal)).normalized;
         }
-
-        private void RunOnWall()
-        {
-            //Take the speed from firstpersoncontroller
-            float runSpeed = _firstPersonController.SprintSpeed;
-            _characterController.Move(wallRunDirection * (_firstPersonController.MoveSpeed * Time.deltaTime));
-        }
+        
     }
 }
