@@ -66,7 +66,8 @@ namespace StarterAssets
         
         private CharacterController _characterController;
         private DodgeAndDash _dodgeAndDash;
-
+        private StarterAssetsInputs _input;
+        
         private bool _isColliding;
         
         private float _minWallRunDotProduct;
@@ -89,9 +90,15 @@ namespace StarterAssets
 
         private void Update()
         {
+            
+        }
+
+        private void FixedUpdate()
+        {
+            //Hopefully this makes the collision check only check once.
             _isColliding = false;
         }
-        
+
         //I'll have to rewrite this.
         //On enter should simply evaluate collisions then. Because there's no way to do it
         void OnCollisionEnter(Collision collision)
@@ -117,7 +124,7 @@ namespace StarterAssets
                 //Can't I just say "if it's the same collider as before then ignore it"?
                 Vector3 normal = collision.GetContact(i).normal;
                 EvaluateCollision(collision, normal);
-                Debug.Log(collision.GetContact(i).otherCollider);
+                //Debug.Log(collision.GetContact(i).otherCollider);
             }
             
             /*
@@ -153,6 +160,13 @@ namespace StarterAssets
             }
             */
         }
+
+        private void StartWalLRun()
+        {
+            //Handle the camera turn here when the player hits a new surface that they can wallrun on.
+            //The checks for wall run validity occur in EvaluateCollision.
+            
+        }
         
         private void EvaluateCollision(Collision collision, Vector3 normal)
         {
@@ -185,23 +199,17 @@ namespace StarterAssets
                 //NOTE: Lerp the rotation. It happens in a single frame the way it's working now.
                 //But we've objectively hit a wall.
                 
-                if (_characterController.isGrounded)
+                Debug.DrawRay(_firstPersonController.transform.position,normal,Color.blue,15);
+                ++_wallContactCount; //We found a wall but we are grounded. Or we think we are. Either way.
+                Debug.Log("HIT WALL wallContactCount = "+_wallContactCount);
+
+                Quaternion rotation = Quaternion.LookRotation(wallRunDirection.normalized);
+                transform.rotation = rotation;
+                if (isWallRunning)
                 {
-                    //Debug.Log("Unfortunately we read grounded this far in.");
-                    Debug.DrawRay(_firstPersonController.transform.position,normal,Color.blue,15);
-                    ++_wallContactCount; //We found a wall but we are grounded. Or we think we are. Either way.
-                    Debug.Log("wallContactCount = "+_wallContactCount);
+                    //Debug.Log("We have entered a new collision but are currently wallrunning. Need to transfer walls");
                 }
-                else
-                {
-                    Quaternion rotation = Quaternion.LookRotation(wallRunDirection.normalized);
-                    transform.rotation = rotation;
-                    if (isWallRunning)
-                    {
-                        //Debug.Log("We have entered a new collision but are currently wallrunning. Need to transfer walls");
-                    }
-                    isWallRunning = true;
-                }
+                isWallRunning = true;
             }
         }
         
@@ -256,6 +264,11 @@ namespace StarterAssets
                 Debug.Log("wallContactCount = "+_wallContactCount);
             }
             
+        }
+
+        private void WallJump()
+        {
+            //It'd be confusing to pass jump things around
         }
         
         private Vector3 ProjectDirectionOnPlane (Vector3 direction, Vector3 normal) {

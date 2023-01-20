@@ -209,13 +209,10 @@ namespace StarterAssets
             //it appropriately.
             if (gotHit)
             {
-                //We've hit something and need to stop in case we go blazing through the object.
-                //May not be necessary.
+                //We've hit something and need to stop in case we go through the object.
                 dashTarget = aimInfo.point * 0.958f;
-                //There's a problem. The dash needs to activate for about 3-5 frames.
-                //But this will only be called once.
-                //My current solution is to just set the dash as active and deactivate once
-                //we've gotten close enough to our destination.
+                //Why * 0.958? Because the contact point is directly on the wall so if we move towards that
+                //position we will wind up inside the wall. (Origin of this object is in the bottom center of the capsule)
             }
             else
             {
