@@ -279,10 +279,25 @@ namespace StarterAssets
 			}
 			else
 			{
+
+				Vector3 tempVelocity = inputDirection.normalized * (_speed * Time.deltaTime) 
+				                       + _wallRunState.wallJumpDirection * (_wallRunState.wallJumpSpeed * Time.deltaTime);
+
+				if (tempVelocity.x > targetSpeed)
+				{
+					
+					//We can clamp this. no need to worry.
+					Debug.Log("Our x speed is out of targetSpeed bounds");
+				}
+				
 				// move the player normally
 				_controller.Move(inputDirection.normalized * (_speed * Time.deltaTime) + 
 				                 new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime +
 				                 _wallRunState.wallJumpDirection * (_wallRunState.wallJumpSpeed * Time.deltaTime));
+				//big problem.
+				//wall jump speed is added onto inputDirection speed. It shouldn't be.
+				//if this was built different I'd be able to solve it but with this controller.Move function being my 
+				//only movement option it's turned difficult.
 			}
 		}
 		private void HeadBob(float speed, bool isSprinting)
