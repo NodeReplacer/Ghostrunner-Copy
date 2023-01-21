@@ -73,7 +73,7 @@ namespace StarterAssets
 		// timeout deltatime
 		private float _jumpTimeoutDelta;
 		private float _fallTimeoutDelta;
-	
+
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
 		private PlayerInput _playerInput;
 #endif
@@ -182,6 +182,11 @@ namespace StarterAssets
 			// set target speed based on move speed, sprint speed and if sprint is pressed
 			float targetSpeed = _input.sprint ? SprintSpeed : MoveSpeed;
 			
+			if (_input.isDodging && dodgeScript.dodgeEnergy > 0 && !Grounded)
+			{
+				targetSpeed = targetSpeed * 5f;
+			}
+			
 			// a simplistic acceleration and deceleration designed to be easy to remove, replace, or iterate upon
 			
 			// note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude
@@ -194,7 +199,7 @@ namespace StarterAssets
 			
 			float speedOffset = 0.1f;
 			float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
-			
+
 			// accelerate or decelerate to target speed
 			if (currentHorizontalSpeed < targetSpeed - speedOffset 
 			    || currentHorizontalSpeed > targetSpeed + speedOffset)
@@ -202,7 +207,7 @@ namespace StarterAssets
 				// creates curved result rather than a linear one giving a more organic speed change
 				// note T in Lerp is clamped, so we don't need to clamp our speed
 				_speed = Mathf.Lerp(currentHorizontalSpeed, targetSpeed * inputMagnitude, 
-					Time.deltaTime * SpeedChangeRate);
+					Time.fixedDeltaTime * SpeedChangeRate);
 
 				// round speed to 3 decimal places
 				_speed = Mathf.Round(_speed * 1000f) / 1000f;
@@ -223,43 +228,40 @@ namespace StarterAssets
 				inputDirection = transform.right * _input.move.x + transform.forward * _input.move.y;
 			}
 			
-			//The player's movement has been settled. It may be better to move the if statements around.
-			//But from here on we will be finalizing the movement and making sure we are in the correct state.
+			//The player's movement has been settled. Here on we will be finalizing the movement and making sure we are in the correct state.
 
-			//Bob the player's head. This will be put in the wallRunstate
+			//Bob the player's head.
 			HeadBob(_speed, _input.move != Vector2.zero);
-			
-			//Should we put the break here, so we can just use the input directions and things that we received here instead?
 
 			if (_input.isDodging && dodgeScript.dodgeEnergy > 0 && !Grounded)
 			{
 				/*
-				Debug.Log("Dodge movement should be taking control here but it won't for now.");
-				//There are a bunch of conditions to the freeRun. I mean these problems only really arose because
+				//There are a bunch of conditions to the dodge. I mean these problems only really arose because
 				//we decided to disconnect the FreeRun code from the FirstPersonController for the sake of 
 				//demonstrating what the unique part is, but it's clear that is not happening. I've been modifying this
 				//code like a madman.
 				
 				//The central problem is that grounded dash has a cooldown.
 				//Furthermore it dashes in the direction that the the player is moving.
-				//So InputDirection will be needed to be messed with.
+				//So InputDirection will need to be referenced
 				
-				//Turns out gravity still affects us but reduced.
-				
-				//We cannot move forward, but we can move to side to side.
+				//We will not move forward, but we can move to side to side.
 				
 				//Yes that means you can turn and move to the side in the direction you REALLY want to go.
 				//And then turn back and dash in the direction you wanted.
 				
-				//Holding shift does not queue up and dodges. There has to be a fresh tap for it to work.
+				//Holding right click does not queue up dodges. There has to be a fresh tap for it to work.
 				//Then the release.
 				
 				//It cannot be used multiple times in the air. 
 				*/
 				
-				_controller.Move(inputDirection.normalized * (_speed * Time.deltaTime) + 
-				                 new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+				//For the dodge itself:
+				//Once the button is pressed it is as if the player is frozen in the air. They can move as they like after that
+				//but cannot go up or down. Only along the x-z plane.
 				
+				_verticalVelocity = 0.0f;
+				_controller.Move(inputDirection.normalized * (_speed * Time.deltaTime));
 			}
 			else if (dodgeScript.isDashing) //While we're dashing our normal movement cannot overwrite the motion of our dash.
 			{
@@ -268,30 +270,20 @@ namespace StarterAssets
 				{
 					dodgeScript.isDashing = false;
 				}
-				_verticalVelocity = 0.0f;
+				_verticalVelocity = 0.0f; //Prevent gravity from building up after the end of the dash.
 			}
 			else if (_wallRunState.isWallRunning)
 			{
-				//WallRun.cs takes over to make us run along the wall.
-				//For now we disable movement but we will need to modify the jump. We can't just jump straight up.
-				
-				//Negate our verticalVelocity (it'll be gravity but this also means that our behind the scenes jump number is also negated).
-				_verticalVelocity = 0.0f;
+				_verticalVelocity = 0.0f; //Prevent gravity from dragging the player down while they are running.
 				_controller.Move(_wallRunState.wallRunDirection.normalized * (MoveSpeed * Time.deltaTime));
 			}
 			else
 			{
-				// move the player
+				// move the player normally
 				_controller.Move(inputDirection.normalized * (_speed * Time.deltaTime) + 
-				                 new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+				                 new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime +
+				                 _wallRunState.wallJumpDirection * (_wallRunState.wallJumpSpeed * Time.deltaTime));
 			}
-			//Okay so unscaledDeltaTime didn't quite work and we want the character's speed to be different in slow time anyway.
-			//Gravity still affects the player but the player can really move side to side in midair.
-			//The Gravity might be half as strong while the player is dodging, however.
-			
-			//Either way, we add a force to the player in the forward direction of camera.transform.
-			
-				
 		}
 		private void HeadBob(float speed, bool isSprinting)
 		{
@@ -310,19 +302,12 @@ namespace StarterAssets
 			{
 				bobTime = 0.0f;
 				headBobSignal.GenerateImpulse(Vector3.down*0.7f);
-				//Currently the impulse is recoil but I think what I really need is a nice bell curve.
-				//Because the sudden snapping of the camera is way too messed up.
-				//too bad this whole impulse cinemachine stuff even happened. I can't seem to find a place to draw a 
-				//curve for the impulse to use as a source.
-				
-				//Worse comes to worse. I'll animate the damn thing by hand and send a signal trigger to the animator itself.
-				
 			}
 		}
 		
 		private void JumpAndGravity()
 		{
-			if (Grounded)
+			if (Grounded || _wallRunState.isWallRunning)
 			{
 				// reset the fall timeout timer
 				_fallTimeoutDelta = FallTimeout;
@@ -336,8 +321,18 @@ namespace StarterAssets
 				// Jump
 				if (_input.jump && _jumpTimeoutDelta <= 0.0f)
 				{
-					// the square root of H * -2 * G = how much velocity needed to reach desired height
-					_verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+					if (!_wallRunState.isWallRunning)
+					{
+						// the square root of H * -2 * G = how much velocity needed to reach desired height
+						_verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+					}
+					else
+					{
+						//If we jump while wallrunning.
+						_verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+						//Debug.Log("Vertical Veloctiy = "+ _verticalVelocity);
+						_wallRunState.WallJump();
+					}
 				}
 
 				// jump timeout

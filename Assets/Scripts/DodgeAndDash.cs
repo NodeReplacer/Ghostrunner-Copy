@@ -36,10 +36,6 @@ namespace StarterAssets
         [Header("Dash Values")]
         [SerializeField]
         public float dashSpeed = 140; //Our dash speed should divide the distance over 3 parts.
-        [SerializeField] 
-        private float dashDuration = 0.05f;
-        [Tooltip("Duration of the dash in seconds.")]
-        [Space] 
         
         public Vector3 dashTarget;
         
@@ -205,14 +201,22 @@ namespace StarterAssets
             gotHit = Physics.CapsuleCast(playerBottom,playerTop,0.5f,playerCamera.transform.forward,
                 out aimInfo,_dashDistance,1<<0);
             
+            
             //Why do I do this with the dash Target? I don't need to know this I can just make it dash to the target and set
             //it appropriately.
             if (gotHit)
             {
+                /*
+                //Debug to find normal of contact surface
+                Debug.DrawRay(aimInfo.point, aimInfo.normal,Color.green,15f);
+                */
+                
                 //We've hit something and need to stop in case we go through the object.
-                dashTarget = aimInfo.point * 0.958f;
-                //Why * 0.958? Because the contact point is directly on the wall so if we move towards that
-                //position we will wind up inside the wall. (Origin of this object is in the bottom center of the capsule)
+                //With the origin of the capsule being dead center and the aimInfo.point being directly on the wall,
+                //moving directly to the point will put us inside the wall.
+                dashTarget = aimInfo.point + (aimInfo.normal * 0.50001f);
+
+                //Debug.DrawRay(dashTarget, Vector3.up, Color.yellow, 15f);
             }
             else
             {
