@@ -83,6 +83,8 @@ namespace StarterAssets
         private float _minWallRunDotProduct;
         private float _maxWallRunDotProduct;
         
+        private Vector3 _tempWallRunDirection;
+        
         void Awake()
         {
             _minWallRunDotProduct = Mathf.Cos(minWallRunAngle * Mathf.Deg2Rad);
@@ -99,12 +101,12 @@ namespace StarterAssets
         {
             if (wallJumpSpeed > 0)
             {
-                Debug.Log("Current wallJumpSpeed = "+wallJumpSpeed);
                 wallJumpSpeed += _wallJumpFalloff * Time.deltaTime;
             }
             else
             {
                 wallJumpSpeed = 0;
+                wallJumpDirection = Vector3.zero;
             }
         }
         private void FixedUpdate()
@@ -160,7 +162,7 @@ namespace StarterAssets
                         //Debug.Log("We have entered a new collision but are currently wallrunning. Need to transfer walls");
                     }
                     isWallRunning = true;
-                    wallJumpDirection = normal;
+                    _tempWallRunDirection = normal * 0.3f + wallRunDirection.normalized;
                 }
                 else
                 {
@@ -216,8 +218,11 @@ namespace StarterAssets
             //debug - show user the direction of the jump in green.
             Debug.DrawRay(transform.position,wallJumpDirection,Color.green,15f);
             
-            wallJumpSpeed = Mathf.Sqrt(_firstPersonController.JumpHeight * -2f * _firstPersonController.Gravity);
-
+            Debug.Log("TempWallRunDirection = "+_tempWallRunDirection);
+            wallJumpSpeed = Mathf.Sqrt(_firstPersonController.JumpHeight * -4f * _firstPersonController.Gravity);
+            wallJumpDirection = _tempWallRunDirection;
+            
+            //Debug.Log("WallJumpDirection = " + wallJumpDirection);
             //After all this is done. Go back to FirstPersonController and return this value to FirstPersonController's
             //own WallJumpDirection (or whatever we call it). Once done FPC's CharacterController.Move() function can use this
             //to handle the rest.
